@@ -17,6 +17,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
+import androidx.compose.ui.focus.FocusRequester.Companion.createRefs
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
@@ -26,8 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintLayout
 import coil.compose.rememberImagePainter
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.NonDisposableHandle.parent
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -40,48 +43,79 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-@Composable
-fun PhotographerCard(modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .padding(8.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colors.surface)
-            .clickable(onClick = { /* Ignoring onClick */ })
-            .padding(16.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(50.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.2f)
-        ) {
-            // Image goes here
-        }
-        Column(
-            modifier = Modifier
-                .padding(start = 8.dp)
-                .align(Alignment.CenterVertically)
-        ) {
-            Text("Alfred Sisley", fontWeight = FontWeight.Bold)
-            CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
-                Text("3 minutes ago", style = MaterialTheme.typography.body2)
-            }
-        }
-    }
-}
+
 val topics = listOf(
     "Arts & Crafts", "Beauty", "Books", "Business", "Comics", "Culinary",
     "Design", "Fashion", "Film", "History", "Maths", "Music", "People", "Philosophy",
     "Religion", "Social sciences", "Technology", "TV", "Writing"
 )
+@Composable
+fun TwoTexts(modifier: Modifier = Modifier, text1: String, text2: String) {
+    Row(modifier = modifier.height(IntrinsicSize.Min)) {
+        Text(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 4.dp)
+                .wrapContentWidth(Alignment.Start),
+            text = text1
+        )
+
+        Divider(color = Color.Black, modifier = Modifier
+            .fillMaxHeight()
+            .width(1.dp))
+        Text(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 4.dp)
+                .wrapContentWidth(Alignment.End),
+            text = text2
+        )
+    }
+}
 
 @Preview
 @Composable
-fun PhotographerCardPreview() {
-    MyApplicationTheme{
-        LayoutsCodelab()
+fun TwoTextsPreview() {
+    MyApplicationTheme {
+        Surface {
+            TwoTexts(text1 = "Hi", text2 = "there")
+        }
     }
 }
+@Composable
+fun ConstraintLayoutContent() {
+    ConstraintLayout {
+
+        // Create references for the composables to constrain
+        val (button, text) = createRefs()
+
+        Button(
+            onClick = { /* Do something */ },
+            // Assign reference "button" to the Button composable
+            // and constrain it to the top of the ConstraintLayout
+            modifier = Modifier.constrainAs(button) {
+                top.linkTo(parent.top, margin = 16.dp)
+            }
+        ) {
+            Text("Button")
+        }
+
+        Text("Text", Modifier.constrainAs(text) {
+            top.linkTo(button.bottom, margin = 16.dp)
+            // Centers Text horizontally in the ConstraintLayout
+            centerHorizontallyTo(parent)
+        })
+    }
+}
+
+@Preview
+@Composable
+fun ConstraintLayoutContentPreview() {
+    MyApplicationTheme {
+        ConstraintLayoutContent()
+    }
+}
+
 @Composable
 fun LayoutsCodelab() {
     Scaffold(
@@ -97,13 +131,14 @@ fun LayoutsCodelab() {
                 }
             )
         }
-    )  { innerPadding ->
+    ) { innerPadding ->
         BodyContent(
             Modifier
                 .padding(innerPadding)
-                .padding(8.dp))
+        )
     }
 }
+
 @Composable
 fun StaggeredGrid(
     modifier: Modifier = Modifier,
@@ -146,7 +181,7 @@ fun StaggeredGrid(
         // Y of each row, based on the height accumulation of previous rows
         val rowY = IntArray(rows) { 0 }
         for (i in 1 until rows) {
-            rowY[i] = rowY[i-1] + rowHeights[i-1]
+            rowY[i] = rowY[i - 1] + rowHeights[i - 1]
         }
         // Set the size of the parent layout
         layout(width, height) {
@@ -164,6 +199,7 @@ fun StaggeredGrid(
         }
     }
 }
+
 @Composable
 fun Chip(modifier: Modifier = Modifier, text: String) {
     Card(
@@ -193,6 +229,7 @@ fun ChipPreview() {
         BodyContent()
     }
 }
+
 fun Modifier.firstBaselineToTop(
     firstBaselineToTop: Dp
 ) = this.then(
@@ -211,6 +248,7 @@ fun Modifier.firstBaselineToTop(
         }
     }
 )
+
 @Preview
 @Composable
 fun TextWithPaddingToBaselinePreview() {
@@ -227,38 +265,6 @@ fun TextWithNormalPaddingPreview() {
     }
 }
 
-@Composable
-fun MyOwnColumn(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Layout(
-        modifier = modifier,
-        content = content
-    ) { measurables, constraints ->
-        // Don't constrain child views further, measure them with given constraints
-        // List of measured children
-        val placeables = measurables.map { measurable ->
-            // Measure each child
-            measurable.measure(constraints)
-        }
-
-        // Track the y co-ord we have placed children up to
-        var yPosition = 0
-
-        // Set the size of the layout as big as it can
-        layout(constraints.maxWidth, constraints.maxHeight) {
-            // Place children in the parent layout
-            placeables.forEach { placeable ->
-                // Position item on the screen
-                placeable.placeRelative(x = 0, y = yPosition)
-
-                // Record the y co-ord placed up to
-                yPosition += placeable.height
-            }
-        }
-    }
-}
 @Composable
 fun ImageListItem(index: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -312,13 +318,19 @@ fun ScrollingList() {
         }
     }
 }
+
 @Composable
 fun BodyContent(modifier: Modifier = Modifier) {
-    Row(modifier = modifier.horizontalScroll(rememberScrollState())) {
-        StaggeredGrid {
-            for (topic in topics) {
-                Chip(modifier = Modifier.padding(8.dp), text = topic)
+    Row(modifier = modifier
+        .background(color = Color.LightGray)
+        .padding(16.dp)
+        .size(200.dp)
+        .horizontalScroll(rememberScrollState()),
+        content = {
+            StaggeredGrid {
+                for (topic in topics) {
+                    Chip(modifier = Modifier.padding(8.dp), text = topic)
+                }
             }
-        }
-    }
+        })
 }
